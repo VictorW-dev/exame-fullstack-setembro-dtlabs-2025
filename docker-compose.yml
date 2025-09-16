@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["5432:5432"]
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  backend:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    ports: ["8000:8000"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./backend:/app
+
+  simulator:
+    build: ./simulator
+    env_file: .env
+    depends_on:
+      - backend
+    command: ["python", "run.py"]
+
+  frontend:
+    build: ./frontend
+    environment:
+      - VITE_API_URL=${API_BASE_URL}
+    ports: ["5173:5173"]
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules   # mantém o node_modules do container
+    command: ["npm", "run", "dev", "--", "--host"]
+
+volumes:
+  db_data:
