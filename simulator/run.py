@@ -1,4 +1,8 @@
-import os, time, random, requests
+import os
+import time
+import random
+import requests
+import json
 from datetime import datetime, timezone
 
 API = os.getenv("API_BASE_URL", "http://backend:8000")
@@ -35,12 +39,22 @@ while True:
             disk_free=round(random.uniform(5, 90), 2),
             temperature=round(random.uniform(20, 90), 2),
             dns_latency_ms=random.randint(5, 200),
-            connectivity=random.choice([0, 1, 1, 1]),  # corrigido: connectivity
+            connectivity=random.choice([0, 1, 1, 1]),  # maioria online
             boot_ts_utc=boot.isoformat()
         )
         try:
             res = requests.post(f"{API}/api/v1/heartbeats", json=payload, timeout=5)
-            print(f"➡️ Sent: {payload} | Response: {res.status_code} {res.text}")
+
+            # Se for JSON, formata bonitinho
+            if res.headers.get("content-type", "").startswith("application/json"):
+                data = json.dumps(res.json(), indent=2, ensure_ascii=False)
+            else:
+                data = res.text
+
+            print(f"\n➡️ Sent: {json.dumps(payload, ensure_ascii=False)}")
+            print(f"⬅️ Response ({res.status_code}): {data}")
+
         except Exception as e:
             print("❌ sim error:", e)
+
     time.sleep(interval)
