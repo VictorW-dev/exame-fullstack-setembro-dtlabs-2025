@@ -1,34 +1,43 @@
-# app/api/v1/auth.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+from app.db.session import get_db
+from app.schemas.auth import AuthRequest
 from app.models.user import User
-from app.core.security import hash_password, verify_password, create_access_token
-
+from passlib.context import CryptContext
+import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+def get_password_hash(password: str):
+    return pwd_context.hash(password)
+
+
+def verify_password(plain: str, hashed: str):
+    return pwd_context.verify(plain, hashed)
 
 
 @router.post("/register")
-def register(email: str, password: str, db: Session = Depends(get_db)):
-    if db.query(User).filter_by(email=email).first():
-        raise HTTPException(400, "Email already exists")
-    u = User(email=email, hashed_password=hash_password(password))
-    db.add(u); db.commit()
-    return {"ok": True}
+def register(payload: AuthRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        return {"error": "User already exists"}
+
+    user = User(
+        id=uuid.uuid4(),
+        email=payload.email,
+        hashed_password=get_password_hash(payload.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"user_id": str(user.id), "email": user.email}
 
 
 @router.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
-    u = db.query(User).filter_by(email=email).first()
-    if not u or not verify_password(password, u.hashed_password):
-        raise HTTPException(401, "Invalid credentials")
-    return {"access_token": create_access_token(u.id), "token_type": "bearer", "user_id": u.id}
+def login(payload: AuthRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not verify_password(payload.password, user.hashed_password):
+        return {"error": "Invalid credentials"}
+    return {"user_id": str(user.id), "email": user.email}

@@ -1,39 +1,30 @@
-# app/api/v1/devices.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from app.db.session import SessionLocal
+from app.db.session import get_db
 from app.models.device import Device
-
+from app.schemas.device import DeviceCreate
+import uuid
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@router.get("")
-def list_devices(user_id: str, db: Session = Depends(get_db)):
-    return db.query(Device).filter_by(user_id=user_id).all()
-
-
 @router.post("")
-def create_device(user_id: str, name: str, location: str, sn: str, description: str, db: Session = Depends(get_db)):
-    if len(sn) != 12:
-        raise HTTPException(400, "sn must have 12 digits")
-    d = Device(name=name, location=location, sn=sn, description=description, user_id=user_id)
-    db.add(d); db.commit(); db.refresh(d)
-    return d
+def create_device(payload: DeviceCreate, db: Session = Depends(get_db)):
+    existing = db.query(Device).filter(Device.sn == payload.sn).first()
+    if existing:
+        return {"error": f"Device SN {payload.sn} já existe"}
 
+    device = Device(
+        uuid=str(uuid.uuid4()),
+        name=payload.name,
+        is_active=True,
+    )
+    # adiciona campos extras
+    device.sn = payload.sn
+    device.description = payload.description
+    device.location = payload.location
 
-@router.delete("/{uuid}")
-def delete_device(uuid: str, user_id: str, db: Session = Depends(get_db)):
-    d = db.query(Device).filter_by(uuid=uuid, user_id=user_id).first()
-    if not d:
-        raise HTTPException(404, "device not found")
-    db.delete(d); db.commit()
-    return {"ok": True}
+    db.add(device)
+    db.commit()
+    db.refresh(device)
+    return {"sn": device.sn, "uuid": device.uuid}

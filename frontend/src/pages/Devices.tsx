@@ -1,41 +1,108 @@
-// src/pages/Devices.tsx (histórico simplificado por device)
+// src/pages/Devices.tsx
 import { useEffect, useState } from "react";
-import { api } from "../lib/api";
-import { getAuth } from "../lib/auth";
+import { api } from "../services/api";
 
+interface Device {
+  uuid: string;
+  name: string;
+  type: string;
+}
 
 export default function Devices() {
-    const { userId } = getAuth();
-    const [devices, setDevices] = useState<any[]>([]);
-    const [selected, setSelected] = useState<string>("");
-    const [items, setItems] = useState<any[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
 
+  async function fetchDevices() {
+    try {
+      const res = await api.get("/devices");
+      setDevices(res.data);
+    } catch (err) {
+      console.error("Erro ao buscar devices:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-    useEffect(() => {
-        (async () => {
-            const { data } = await api.get("/api/v1/devices", { params: { user_id: userId } });
-            setDevices(data); if (data[0]) setSelected(data[0].uuid);
-        })();
-    }, []);
+  useEffect(() => {
+    fetchDevices();
+  }, []);
 
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await api.post("/devices", { name, type });
+      setName("");
+      setType("");
+      fetchDevices();
+    } catch (err) {
+      console.error("Erro ao criar device:", err);
+    }
+  }
 
-    useEffect(() => {
-        if (!selected) return; (async () => {
-            const { data } = await api.get("/api/v1/heartbeats", { params: { device_uuid: selected } });
-            setItems(data);
-        })();
-    }, [selected]);
+  async function handleDelete(uuid: string) {
+    if (!confirm("Deseja realmente deletar este dispositivo?")) return;
+    try {
+      await api.delete(`/devices/${uuid}`);
+      setDevices(devices.filter((d) => d.uuid !== uuid));
+    } catch (err) {
+      console.error("Erro ao deletar device:", err);
+    }
+  }
 
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Dispositivos</h1>
 
-    return (
-        <div style={{ padding: 24 }}>
-            <h2>Histórico</h2>
-            <select value={selected} onChange={e => setSelected(e.target.value)}>
-                {devices.map(d => <option key={d.uuid} value={d.uuid}>{d.name}</option>)}
-            </select>
-            <pre style={{ whiteSpace: "pre-wrap", background: "#111", color: "#0f0", padding: 12 }}>
-                {items.slice(0, 20).map(i => JSON.stringify(i)).join("\n")}
-            </pre>
-        </div>
-    )
+      {/* Formulário */}
+      <form onSubmit={handleAdd} className="mb-6 flex gap-2">
+        <input
+          type="text"
+          placeholder="Nome do dispositivo"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="border p-2 rounded flex-1"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Tipo (ex: sensor, gateway)"
+          value={type}
+          onChange={(e) => setType(e.target.value)}
+          className="border p-2 rounded flex-1"
+          required
+        />
+        <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Adicionar
+        </button>
+      </form>
+
+      {/* Lista */}
+      {loading ? (
+        <p>Carregando dispositivos...</p>
+      ) : devices.length === 0 ? (
+        <p>Nenhum dispositivo cadastrado.</p>
+      ) : (
+        <ul className="space-y-2">
+          {devices.map((d) => (
+            <li
+              key={d.uuid}
+              className="flex justify-between items-center p-3 border rounded bg-white shadow"
+            >
+              <span>
+                <span className="font-semibold">{d.name}</span> — {d.type}
+              </span>
+              <button
+                onClick={() => handleDelete(d.uuid)}
+                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+              >
+                Deletar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }

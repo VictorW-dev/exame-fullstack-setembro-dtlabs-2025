@@ -1,65 +1,155 @@
-// src/pages/Notifications.tsx — cria regra e consome WS em tempo real
-import { useEffect, useRef, useState } from "react";
-import { api } from "../lib/api";
-import { getAuth } from "../lib/auth";
+// src/pages/Notifications.tsx
+import { useEffect, useState } from "react";
+import { api } from "../services/api";
 
+interface Rule {
+  id: string;
+  metric: string;
+  condition: string;
+  value: number;
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  created_at: string;
+}
 
 export default function Notifications() {
-    const { userId } = getAuth();
-    const [rules, setRules] = useState<any[]>([]);
-    const [name, setName] = useState("CPU Alta");
-    const [scope, setScope] = useState("all");
-    const [device_uuids, setDeviceUuids] = useState("");
-    const [condition, setCondition] = useState("cpu > 70");
-    const [events, setEvents] = useState<any[]>([]);
-    const wsRef = useRef<WebSocket | null>(null);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [metric, setMetric] = useState("");
+  const [condition, setCondition] = useState(">");
+  const [value, setValue] = useState<number>(0);
 
-
-    useEffect(() => {
-        (async () => {
-            const { data } = await api.get("/api/v1/notifications/rules", { params: { user_id: userId } });
-            setRules(data);
-        })();
-    }, []);
-
-
-    const addRule = async () => {
-        const { data } = await api.post("/api/v1/notifications/rules", null, { params: { user_id: userId, name, scope, device_uuids, condition } });
-        setRules(r => [data, ...r]);
+  async function fetchRules() {
+    try {
+      const res = await api.get("/notifications/rules");
+      setRules(res.data);
+    } catch (err) {
+      console.error("Erro ao carregar regras:", err);
     }
+  }
 
+  useEffect(() => {
+    fetchRules();
 
-    useEffect(() => {
-        const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host.replace(':5173', ':8000')}/ws?user_id=${userId}`);
-        wsRef.current = ws; ws.onmessage = (e) => setEvents(ev => [JSON.parse(e.data), ...ev].slice(0, 50));
-        return () => ws.close();
-    }, []);
+    // abrir websocket
+    const userId = localStorage.getItem("user_id"); // salva no login
+    if (!userId) return;
 
+    const ws = new WebSocket(`ws://localhost:8000/ws?user_id=${userId}`);
 
-    return (
-        <div style={{ padding: 24 }}>
-            <h2>Notificações (tempo real)</h2>
-            <div>
-                <input placeholder="nome" value={name} onChange={e => setName(e.target.value)} />
-                <select value={scope} onChange={e => setScope(e.target.value)}>
-                    <option value="all">all</option>
-                    <option value="selected">selected</option>
-                    <option value="single">single</option>
-                </select>
-                <input placeholder="device_uuids (CSV)" value={device_uuids} onChange={e => setDeviceUuids(e.target.value)} />
-                <input placeholder="condição ex: cpu > 70" value={condition} onChange={e => setCondition(e.target.value)} />
-                <button onClick={addRule}>Criar Regra</button>
-            </div>
+    ws.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        setNotifications((prev) => [
+          { id: crypto.randomUUID(), message: payload.message, created_at: new Date().toISOString() },
+          ...prev,
+        ]);
+      } catch (e) {
+        console.error("Erro no WS:", e);
+      }
+    };
 
+    return () => ws.close();
+  }, []);
 
-            <h3>Regras</h3>
-            <ul>{rules.map(r => <li key={r.id}>{r.name} — {r.scope} — {r.condition}</li>)}</ul>
+  async function handleAddRule(e: React.FormEvent) {
+    e.preventDefault();
+    try {
+      await api.post("/notifications/rules", { metric, condition, value });
+      setMetric("");
+      setCondition(">");
+      setValue(0);
+      fetchRules();
+    } catch (err) {
+      console.error("Erro ao criar regra:", err);
+    }
+  }
 
+  async function handleDeleteRule(id: string) {
+    if (!confirm("Excluir regra?")) return;
+    try {
+      await api.delete(`/notifications/rules/${id}`);
+      setRules(rules.filter((r) => r.id !== id));
+    } catch (err) {
+      console.error("Erro ao deletar regra:", err);
+    }
+  }
 
-            <h3>Eventos (recentes)</h3>
-            <pre style={{ whiteSpace: "pre-wrap", background: "#111", color: "#0f0", padding: 12 }}>
-                {events.map(e => JSON.stringify(e)).join("\n")}
-            </pre>
-        </div>
-    )
-}                                                                               
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Notificações</h1>
+
+      {/* Formulário de regras */}
+      <form onSubmit={handleAddRule} className="mb-6 flex gap-2">
+        <input
+          type="text"
+          placeholder="Métrica (cpu, temperature...)"
+          value={metric}
+          onChange={(e) => setMetric(e.target.value)}
+          className="border p-2 rounded flex-1"
+          required
+        />
+        <select
+          value={condition}
+          onChange={(e) => setCondition(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value=">">&gt;</option>
+          <option value="<">&lt;</option>
+          <option value="=">=</option>
+        </select>
+        <input
+          type="number"
+          placeholder="Valor limite"
+          value={value}
+          onChange={(e) => setValue(Number(e.target.value))}
+          className="border p-2 rounded w-32"
+          required
+        />
+        <button className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+          Adicionar Regra
+        </button>
+      </form>
+
+      {/* Lista de regras */}
+      <h2 className="text-xl font-semibold mb-2">Regras Ativas</h2>
+      {rules.length === 0 ? (
+        <p className="mb-6">Nenhuma regra cadastrada.</p>
+      ) : (
+        <ul className="space-y-2 mb-6">
+          {rules.map((r) => (
+            <li key={r.id} className="flex justify-between items-center p-3 border rounded bg-white shadow">
+              <span>
+                {r.metric} {r.condition} {r.value}
+              </span>
+              <button
+                onClick={() => handleDeleteRule(r.id)}
+                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+              >
+                Deletar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* Notificações em tempo real */}
+      <h2 className="text-xl font-semibold mb-2">Últimas Notificações</h2>
+      {notifications.length === 0 ? (
+        <p>Nenhuma notificação recebida.</p>
+      ) : (
+        <ul className="space-y-2">
+          {notifications.map((n) => (
+            <li key={n.id} className="p-3 border rounded bg-yellow-50 shadow">
+              <span className="font-semibold">[{new Date(n.created_at).toLocaleTimeString()}]</span>{" "}
+              {n.message}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

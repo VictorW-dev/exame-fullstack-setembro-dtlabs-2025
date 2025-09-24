@@ -1,21 +1,50 @@
-import { Link, Outlet } from "react-router-dom";
+// src/components/Layout.tsx
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 export default function Layout() {
-  return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar simples */}
-      <nav style={{ width: "200px", background: "#f4f4f4", padding: "1rem" }}>
-        <h2>Telemetry</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          <li><Link to="/app/home">Home</Link></li>
-          <li><Link to="/app/devices">Devices</Link></li>
-          <li><Link to="/app/notifications">Notifications</Link></li>
-          <li><Link to="/app/device-crud">Device CRUD</Link></li>
-        </ul>
-      </nav>
+  const navigate = useNavigate();
 
-      {/* Conteúdo da página atual */}
-      <main style={{ flex: 1, padding: "1rem" }}>
+  // se não houver token, redireciona para login
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) navigate("/");
+  }, [navigate]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100">
+      {/* Sidebar */}
+      <aside className="w-64 bg-white shadow-md flex flex-col">
+        <div className="p-4 text-xl font-bold border-b">Telemetry</div>
+        <nav className="flex-1 p-4 space-y-2">
+          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/home">
+            Home
+          </Link>
+          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/devices">
+            Devices
+          </Link>
+          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/notifications">
+            Notifications
+          </Link>
+          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/device-crud">
+            Manage Devices
+          </Link>
+        </nav>
+        <button
+          onClick={handleLogout}
+          className="m-4 p-2 bg-red-500 text-white rounded hover:bg-red-600"
+        >
+          Logout
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-y-auto">
         <Outlet />
       </main>
     </div>

@@ -1,27 +1,74 @@
 // src/pages/Login.tsx
 import { useState } from "react";
-import { api, setToken } from "../lib/api";
-import { saveAuth } from "../lib/auth";
-
+import { useNavigate } from "react-router-dom";
+import { api } from "../services/api";
 
 export default function Login() {
-    const [email, setEmail] = useState("admin@demo.com");
-    const [password, setPassword] = useState("admin");
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("admin@demo.com"); // default para testes
+  const [password, setPassword] = useState("admin");
+  const [error, setError] = useState("");
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
 
-    const submit = async (e: any) => {
-        e.preventDefault();
-        const { data } = await api.post("/api/v1/auth/login", null, { params: { email, password } });
-        saveAuth(data.access_token, data.user_id);
-        setToken(data.access_token);
-        location.href = "/app/home";
+    try {
+      const res = await api.post("/auth/login", { email, password });
+      const token = res.data?.access_token;
+      if (token) {
+        localStorage.setItem("token", token);
+        navigate("/app/home");
+      } else {
+        setError("Credenciais inválidas");
+      }
+    } catch (err) {
+      console.error("Erro no login:", err);
+      setError("Falha ao autenticar. Verifique suas credenciais.");
     }
-    return (
-        <form onSubmit={submit} style={{ maxWidth: 380, margin: "6rem auto" }}>
-            <h2>Login</h2>
-            <input value={email} onChange={e => setEmail(e.target.value)} placeholder="email" /><br />
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="password" /><br />
-            <button>Entrar</button>
-        </form>
-    )
+  };
+
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white p-8 rounded shadow-md w-full max-w-sm"
+      >
+        <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
+
+        {error && (
+          <div className="mb-4 text-red-500 text-sm font-semibold">{error}</div>
+        )}
+
+        <div className="mb-4">
+          <label className="block mb-1 font-medium">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
+            required
+          />
+        </div>
+
+        <div className="mb-6">
+          <label className="block mb-1 font-medium">Senha</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+        >
+          Entrar
+        </button>
+      </form>
+    </div>
+  );
 }
