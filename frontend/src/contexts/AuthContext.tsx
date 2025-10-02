@@ -24,37 +24,43 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
-      authAPI.getMe()
-        .then(userData => {
-          setUser(userData);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          localStorage.removeItem('userId');
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
+    const userId = localStorage.getItem('userId');
+    const userEmail = localStorage.getItem('userEmail');
+    
+    if (token && userId && userEmail) {
+      // Recuperar dados do usuário do localStorage
+      setUser({
+        id: userId,
+        email: userEmail,
+        name: userEmail.split('@')[0],
+        created_at: new Date().toISOString()
+      });
     }
+    setLoading(false);
   }, []);
 
   const login = async (credentials: LoginRequest) => {
+    console.log('🔐 Tentando fazer login com:', credentials);
     try {
       const response: AuthResponse = await authAPI.login(credentials);
+      console.log('✅ Login bem-sucedido:', response);
+      
       localStorage.setItem('token', response.access_token);
       localStorage.setItem('userId', response.user_id);
+      localStorage.setItem('userEmail', response.email);
       
       // Set user data from login response
-      setUser({
+      const userData = {
         id: response.user_id,
         email: response.email,
         name: response.email.split('@')[0], // Use email prefix as name
         created_at: new Date().toISOString()
-      });
+      };
+      
+      console.log('👤 Definindo usuário:', userData);
+      setUser(userData);
     } catch (error) {
+      console.error('💥 Erro no login:', error);
       throw error;
     }
   };
@@ -62,6 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
+    localStorage.removeItem('userEmail');
     setUser(null);
   };
 

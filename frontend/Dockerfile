@@ -11,6 +11,9 @@ RUN npm install
 # Copia o restante do projeto
 COPY . .
 
+# Define variável de ambiente para a API
+ENV VITE_API_URL=http://localhost:8000/api/v1
+
 # Expõe porta usada pelo Vite
 EXPOSE 5173
 
