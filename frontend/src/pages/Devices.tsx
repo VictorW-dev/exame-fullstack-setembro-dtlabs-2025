@@ -1,41 +1,115 @@
-// src/pages/Devices.tsx (histórico simplificado por device)
-import { useEffect, useState } from "react";
-import { api } from "../lib/api";
-import { getAuth } from "../lib/auth";
-
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { devicesAPI } from '../services/api';
+import { Device } from '../types';
 
 export default function Devices() {
-    const { userId } = getAuth();
-    const [devices, setDevices] = useState<any[]>([]);
-    const [selected, setSelected] = useState<string>("");
-    const [items, setItems] = useState<any[]>([]);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
+  useEffect(() => {
+    loadDevices();
+  }, []);
 
-    useEffect(() => {
-        (async () => {
-            const { data } = await api.get("/api/v1/devices", { params: { user_id: userId } });
-            setDevices(data); if (data[0]) setSelected(data[0].uuid);
-        })();
-    }, []);
+  const loadDevices = async () => {
+    try {
+      const data = await devicesAPI.getAll();
+      setDevices(data);
+    } catch (error: any) {
+      setError('Erro ao carregar dispositivos');
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Tem certeza que deseja deletar este dispositivo?')) {
+      try {
+        await devicesAPI.delete(id);
+        setDevices(devices.filter(d => d.id !== id));
+      } catch (error) {
+        alert('Erro ao deletar dispositivo');
+      }
+    }
+  };
 
-    useEffect(() => {
-        if (!selected) return; (async () => {
-            const { data } = await api.get("/api/v1/heartbeats", { params: { device_uuid: selected } });
-            setItems(data);
-        })();
-    }, [selected]);
-
-
+  if (loading) {
     return (
-        <div style={{ padding: 24 }}>
-            <h2>Histórico</h2>
-            <select value={selected} onChange={e => setSelected(e.target.value)}>
-                {devices.map(d => <option key={d.uuid} value={d.uuid}>{d.name}</option>)}
-            </select>
-            <pre style={{ whiteSpace: "pre-wrap", background: "#111", color: "#0f0", padding: 12 }}>
-                {items.slice(0, 20).map(i => JSON.stringify(i)).join("\n")}
-            </pre>
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Carregando dispositivos...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="devices-container">
+      <header className="page-header">
+        <div className="header-content">
+          <div>
+            <h1>📱 Dispositivos IoT</h1>
+            <p>Gerencie seus dispositivos de telemetria</p>
+          </div>
+          <Link to="/devices/new" className="btn btn-primary">
+            ➕ Novo Dispositivo
+          </Link>
         </div>
-    )
+      </header>
+
+      {error && (
+        <div className="error-message">
+          ❌ {error}
+        </div>
+      )}
+
+      <div className="devices-grid">
+        {devices.map(device => (
+          <div key={device.id} className="device-card">
+            <div className="device-header">
+              <h3>{device.name}</h3>
+              <span className="device-sn">SN: {device.sn}</span>
+            </div>
+            
+            <div className="device-info">
+              <p><strong>📍 Local:</strong> {device.location}</p>
+              {device.description && (
+                <p><strong>📝 Descrição:</strong> {device.description}</p>
+              )}
+              <p><strong>📅 Criado:</strong> {new Date(device.created_at).toLocaleDateString('pt-BR')}</p>
+              {device.last_heartbeat && (
+                <p><strong>💓 Último heartbeat:</strong> {new Date(device.last_heartbeat).toLocaleString('pt-BR')}</p>
+              )}
+            </div>
+
+            <div className="device-actions">
+              <Link to={`/devices/${device.id}`} className="btn btn-secondary">
+                👁️ Ver Detalhes
+              </Link>
+              <Link to={`/devices/${device.id}/edit`} className="btn btn-outline">
+                ✏️ Editar
+              </Link>
+              <button 
+                onClick={() => handleDelete(device.id)}
+                className="btn btn-danger"
+              >
+                🗑️ Deletar
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {devices.length === 0 && !loading && (
+        <div className="empty-state">
+          <h3>📱 Nenhum dispositivo cadastrado</h3>
+          <p>Comece criando seu primeiro dispositivo IoT</p>
+          <Link to="/devices/new" className="btn btn-primary">
+            ➕ Criar Primeiro Dispositivo
+          </Link>
+        </div>
+      )}
+    </div>
+  );
 }

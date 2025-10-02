@@ -1,8 +1,11 @@
 FROM python:3.12-slim
+
 WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 
-# Aqui o arquivo já está dentro da pasta backend
+# Instala curl (necessário para o healthcheck funcionar)
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 

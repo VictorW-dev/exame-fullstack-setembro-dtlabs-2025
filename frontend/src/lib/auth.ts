@@ -1,10 +1,20 @@
-export function saveAuth(token: string, userId: string) {
-    localStorage.setItem("token", token);
-    localStorage.setItem("userId", userId);
+import { api } from "./api";
+
+export async function login(email: string, password: string) {
+  const response = await api.post("/auth/login", { email, password });
+  const { access_token, user_id } = response.data;
+
+  localStorage.setItem("token", access_token);
+  localStorage.setItem("user_id", user_id);
+
+  return response.data;
 }
-export function getAuth() {
-    return { token: localStorage.getItem("token"), userId: localStorage.getItem("userId") };
+
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user_id");
 }
-export function clearAuth() {
-    localStorage.removeItem("token"); localStorage.removeItem("userId");
+
+export function isAuthenticated() {
+  return !!localStorage.getItem("token");
 }

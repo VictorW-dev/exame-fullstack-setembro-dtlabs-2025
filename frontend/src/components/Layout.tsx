@@ -1,22 +1,88 @@
-import { Link, Outlet } from "react-router-dom";
+import React, { ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
-export default function Layout() {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth();
+  const { notifications } = useNotifications();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const isActivePage = (path: string) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
+
+  const navItems = [
+    { path: '/', label: 'Dashboard', icon: '🏠' },
+    { path: '/devices', label: 'Dispositivos', icon: '📱' },
+    { 
+      path: '/notifications', 
+      label: 'Notificações', 
+      icon: '🔔',
+      badge: notifications.length > 0 ? notifications.length : undefined
+    },
+  ];
+
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar simples */}
-      <nav style={{ width: "200px", background: "#f4f4f4", padding: "1rem" }}>
-        <h2>Telemetry</h2>
-        <ul style={{ listStyle: "none", padding: 0 }}>
-          <li><Link to="/app/home">Home</Link></li>
-          <li><Link to="/app/devices">Devices</Link></li>
-          <li><Link to="/app/notifications">Notifications</Link></li>
-          <li><Link to="/app/device-crud">Device CRUD</Link></li>
-        </ul>
-      </nav>
-
-      {/* Conteúdo da página atual */}
-      <main style={{ flex: 1, padding: "1rem" }}>
-        <Outlet />
+    <div className="app-container">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <h2 className="nav-brand">🚀 IoT Monitor</h2>
+          <p className="text-small">Sistema de Telemetria</p>
+        </div>
+        
+        <nav className="sidebar-nav">
+          <ul>
+            {navItems.map(item => (
+              <li key={item.path}>
+                <Link 
+                  to={item.path}
+                  className={isActivePage(item.path) ? 'active' : ''}
+                >
+                  <span className="icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="notification-badge">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div style={{ marginBottom: '0.5rem' }}>
+              <strong>{user?.name || 'Usuário'}</strong>
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+              {user?.email}
+            </div>
+            <button onClick={handleLogout} className="btn btn-outline btn-small" style={{ width: '100%' }}>
+              🚪 Sair
+            </button>
+          </div>
+        </div>
+      </aside>
+      
+      <main className="main-content">
+        <div className="page-content">
+          {children}
+        </div>
       </main>
     </div>
   );
