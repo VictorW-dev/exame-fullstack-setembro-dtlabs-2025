@@ -34,9 +34,6 @@ export const authAPI = {
   
   register: (data: RegisterRequest): Promise<User> =>
     api.post("/auth/register", data).then(res => res.data),
-  
-  getMe: (): Promise<User> =>
-    api.get("/users/me").then(res => res.data),
 };
 
 // Devices API

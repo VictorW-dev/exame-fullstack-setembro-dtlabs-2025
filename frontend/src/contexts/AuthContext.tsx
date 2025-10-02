@@ -47,9 +47,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.setItem('token', response.access_token);
       localStorage.setItem('userId', response.user_id);
       
-      // Get user data
-      const userData = await authAPI.getMe();
-      setUser(userData);
+      // Set user data from login response
+      setUser({
+        id: response.user_id,
+        email: response.email,
+        name: response.email.split('@')[0], // Use email prefix as name
+        created_at: new Date().toISOString()
+      });
     } catch (error) {
       throw error;
     }
