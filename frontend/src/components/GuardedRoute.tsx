@@ -1,9 +1,26 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { isAuthenticated } from "../lib/auth";
+import React, { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
-export default function GuardedRoute() {
-  if (!isAuthenticated()) {
-    return <Navigate to="/" replace />;
+interface GuardedRouteProps {
+  children: ReactNode;
+}
+
+export default function GuardedRoute({ children }: GuardedRouteProps) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Carregando...</p>
+      </div>
+    );
   }
-  return <Outlet />;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
 }

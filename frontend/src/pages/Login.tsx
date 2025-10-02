@@ -1,74 +1,115 @@
-// src/pages/Login.tsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "../services/api";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
+  const [email, setEmail] = useState('admin@demo.com');
+  const [password, setPassword] = useState('admin');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@demo.com"); // default para testes
-  const [password, setPassword] = useState("admin");
-  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setLoading(true);
+    setError('');
 
     try {
-      const res = await api.post("/auth/login", { email, password });
-      const token = res.data?.access_token;
-      if (token) {
-        localStorage.setItem("token", token);
-        navigate("/app/home");
-      } else {
-        setError("Credenciais inválidas");
-      }
-    } catch (err) {
-      console.error("Erro no login:", err);
-      setError("Falha ao autenticar. Verifique suas credenciais.");
+      await login({ email, password });
+      navigate('/');
+    } catch (error: any) {
+      setError(error.response?.data?.detail || 'Erro ao fazer login');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center h-screen bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-8 rounded shadow-md w-full max-w-sm"
-      >
-        <h1 className="text-2xl font-bold mb-6 text-center">Login</h1>
-
-        {error && (
-          <div className="mb-4 text-red-500 text-sm font-semibold">{error}</div>
-        )}
-
-        <div className="mb-4">
-          <label className="block mb-1 font-medium">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-            required
-          />
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1 className="login-title">🔗 IoT Telemetry</h1>
+          <p className="login-subtitle">Acesse o dashboard de telemetria</p>
         </div>
 
-        <div className="mb-6">
-          <label className="block mb-1 font-medium">Senha</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full border px-3 py-2 rounded focus:outline-none focus:ring focus:border-blue-300"
-            required
-          />
-        </div>
+        <div className="login-body">
+          <form onSubmit={handleSubmit}>
+            {error && (
+              <div className="error-message">
+                ❌ {error}
+                <button 
+                  type="button" 
+                  onClick={() => setError('')} 
+                  className="close-btn"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
-        <button
-          type="submit"
-          className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
-        >
-          Entrar
-        </button>
-      </form>
+            <div className="form-group">
+              <label htmlFor="email">📧 Email</label>
+              <input
+                id="email"
+                type="email"
+                className="form-control"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@demo.com"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">🔒 Senha</label>
+              <input
+                id="password"
+                type="password"
+                className="form-control"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="admin"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary btn-large w-full"
+            >
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  Carregando...
+                </>
+              ) : (
+                '🚪 Entrar'
+              )}
+            </button>
+          </form>
+
+          <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.375rem', fontSize: '0.875rem' }}>
+            <p style={{ margin: '0 0 0.5rem', fontWeight: '600', color: '#374151' }}>
+              🔧 Credenciais padrão:
+            </p>
+            <p style={{ margin: 0, color: '#6b7280' }}>
+              <strong>Email:</strong> admin@demo.com<br />
+              <strong>Senha:</strong> admin
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

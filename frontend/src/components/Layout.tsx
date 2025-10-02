@@ -1,51 +1,88 @@
-// src/components/Layout.tsx
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import React, { ReactNode } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotifications } from '../contexts/NotificationContext';
 
-export default function Layout() {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth();
+  const { notifications } = useNotifications();
+  const location = useLocation();
   const navigate = useNavigate();
 
-  // se não houver token, redireciona para login
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) navigate("/");
-  }, [navigate]);
-
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
+    logout();
+    navigate('/login');
   };
 
-  return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white shadow-md flex flex-col">
-        <div className="p-4 text-xl font-bold border-b">Telemetry</div>
-        <nav className="flex-1 p-4 space-y-2">
-          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/home">
-            Home
-          </Link>
-          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/devices">
-            Devices
-          </Link>
-          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/notifications">
-            Notifications
-          </Link>
-          <Link className="block p-2 rounded hover:bg-gray-200" to="/app/device-crud">
-            Manage Devices
-          </Link>
-        </nav>
-        <button
-          onClick={handleLogout}
-          className="m-4 p-2 bg-red-500 text-white rounded hover:bg-red-600"
-        >
-          Logout
-        </button>
-      </aside>
+  const isActivePage = (path: string) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
 
-      {/* Main Content */}
-      <main className="flex-1 p-6 overflow-y-auto">
-        <Outlet />
+  const navItems = [
+    { path: '/', label: 'Dashboard', icon: '🏠' },
+    { path: '/devices', label: 'Dispositivos', icon: '📱' },
+    { 
+      path: '/notifications', 
+      label: 'Notificações', 
+      icon: '🔔',
+      badge: notifications.length > 0 ? notifications.length : undefined
+    },
+  ];
+
+  return (
+    <div className="app-container">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <h2 className="nav-brand">🚀 IoT Monitor</h2>
+          <p className="text-small">Sistema de Telemetria</p>
+        </div>
+        
+        <nav className="sidebar-nav">
+          <ul>
+            {navItems.map(item => (
+              <li key={item.path}>
+                <Link 
+                  to={item.path}
+                  className={isActivePage(item.path) ? 'active' : ''}
+                >
+                  <span className="icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="notification-badge">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div style={{ marginBottom: '0.5rem' }}>
+              <strong>{user?.name || 'Usuário'}</strong>
+            </div>
+            <div style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1rem' }}>
+              {user?.email}
+            </div>
+            <button onClick={handleLogout} className="btn btn-outline btn-small" style={{ width: '100%' }}>
+              🚪 Sair
+            </button>
+          </div>
+        </div>
+      </aside>
+      
+      <main className="main-content">
+        <div className="page-content">
+          {children}
+        </div>
       </main>
     </div>
   );

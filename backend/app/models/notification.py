@@ -14,7 +14,7 @@ class NotificationRule(Base):
     name: Mapped[str] = mapped_column(String)
     # scope: "all" | "selected" | "single"
     scope: Mapped[str] = mapped_column(String)
-    device_uuids: Mapped[str] = mapped_column(String)  # CSV para simplicidade
+    device_sns: Mapped[str] = mapped_column(String)  # CSV com SNs
     # condition expression (ex.: "cpu > 70" ou "temperature > 75")
     condition: Mapped[str] = mapped_column(String)
     created_at: Mapped[dt.datetime] = mapped_column(
@@ -31,7 +31,7 @@ class Notification(Base):
     )
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), index=True)
     rule_id: Mapped[str] = mapped_column(String, ForeignKey("notification_rules.id"))
-    device_uuid: Mapped[str] = mapped_column(String, ForeignKey("devices.uuid"))
+    device_sn: Mapped[str] = mapped_column(String, ForeignKey("devices.sn"))  # corrigido
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[dt.datetime] = mapped_column(
         TIMESTAMP(timezone=False),

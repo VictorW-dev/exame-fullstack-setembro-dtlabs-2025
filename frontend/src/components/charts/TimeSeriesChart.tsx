@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import React from 'react';
 
 interface Props {
   data: { timestamp: string; value: number }[];
@@ -7,13 +7,16 @@ interface Props {
 
 export default function TimeSeriesChart({ data, metric }: Props) {
   return (
-    <LineChart width={800} height={400} data={data}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="timestamp" />
-      <YAxis />
-      <Tooltip />
-      <Legend />
-      <Line type="monotone" dataKey="value" stroke="#8884d8" name={metric} />
-    </LineChart>
+    <div className="chart-placeholder">
+      <h3>📊 {metric} Chart</h3>
+      <p>Gráfico de séries temporais será implementado aqui</p>
+      <div className="chart-data">
+        {data.slice(0, 5).map((item, index) => (
+          <div key={index} className="data-point">
+            <span>{item.timestamp}</span>: <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Float, Integer, TIMESTAMP, ForeignKey
 from app.db.base_class import Base
 import datetime as dt
@@ -23,3 +23,6 @@ class Heartbeat(Base):
     created_at: Mapped[dt.datetime] = mapped_column(
         TIMESTAMP(timezone=False), default=lambda: dt.datetime.utcnow()
     )
+
+    # relacionamento com Device
+    device = relationship("Device", back_populates="heartbeats")

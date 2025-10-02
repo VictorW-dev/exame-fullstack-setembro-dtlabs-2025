@@ -5,7 +5,7 @@ from app.db.session import SessionLocal
 from app.models.notification import NotificationRule, Notification
 
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(tags=["notifications"])
 
 
 def get_db():
