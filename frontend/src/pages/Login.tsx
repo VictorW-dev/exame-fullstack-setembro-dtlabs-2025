@@ -23,10 +23,15 @@ export default function Login() {
     setError('');
 
     try {
+      console.log('🔐 Dados do login:', { email, password });
       await login({ email, password });
+      console.log('✅ Login realizado, navegando para home');
       navigate('/');
     } catch (error: any) {
-      setError(error.response?.data?.detail || 'Erro ao fazer login');
+      console.error('💥 Erro capturado no Login:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Erro ao fazer login';
+      console.error('📝 Mensagem de erro:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

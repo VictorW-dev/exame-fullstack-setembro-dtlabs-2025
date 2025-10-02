@@ -14,18 +14,43 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
 
+console.log('🌐 API URL configurada:', API_URL);
+console.log('🔧 Environment variables:', import.meta.env);
+
 export const api = axios.create({
   baseURL: API_URL,
 });
 
-// injeta o token em cada request
+// Debug interceptor
 api.interceptors.request.use((config) => {
+  console.log('🚀 API Request:', {
+    url: config.url,
+    method: config.method,
+    baseURL: config.baseURL,
+    data: config.data,
+    headers: config.headers
+  });
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    console.log('✅ API Response:', response.data);
+    return response;
+  },
+  (error) => {
+    console.error('❌ API Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    return Promise.reject(error);
+  }
+);
 
 // Auth API
 export const authAPI = {
@@ -34,9 +59,6 @@ export const authAPI = {
   
   register: (data: RegisterRequest): Promise<User> =>
     api.post("/auth/register", data).then(res => res.data),
-  
-  getMe: (): Promise<User> =>
-    api.get("/users/me").then(res => res.data),
 };
 
 // Devices API
